@@ -9,10 +9,10 @@ const color = colors[colorindex];
     return (
         <div className={"m-1 w-8 h-8 relative rounded-full  flex items-center "+color}>
             <div className="text-center w-full"> {username[0]} </div> 
-            {online &&(
+            {/* {online &&(
                 <div className="absolute w-3 h-3 bg-green-400 rounded-full border border-customGray bottom-0 right-0"></div>
 
-            )}
+            )} */}
 
         </div>
     );

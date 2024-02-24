@@ -10,12 +10,12 @@ const TypingEffect = () => {
       setTimeout(() => {
         setText(text + fullText.charAt(count));
         setCount(count + 1);
-      }, 90); // Adjust the speed of typing here
+      }, 90); 
     }
   }, [text, count, fullText]);
 
   return (
-    <div className="m-322 font-semibold text-6xl text-black">
+    <div className="m-6 font-semibold text-5xl text-black">
       {text}
       <span className="animate-ping absolute h-3 w-2 rounded-full bg-yellow-400 opacity-100">|</span>
     </div>

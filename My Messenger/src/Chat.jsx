@@ -6,6 +6,10 @@ import { PiSignOut } from "react-icons/pi";
 import axios from "axios";
 import Avatar from "./Avatar";
 import Person from "./Person";
+import UseAnimations from "react-useanimations";
+import activity from 'react-useanimations/lib/activity';
+import { motion , AnimatePresence } from "framer-motion"
+
 
 export default function Chat() {
     const [ws, setWs] = useState(null);
@@ -18,9 +22,12 @@ export default function Chat() {
     const [query, setQuery] = useState('');
     const messagesBoxReference = useRef();
     const {username, id, setID, setUsername} = useContext(UserContext);
-
+    const [friendRequests, setFriendRequests] = useState([]);
+    
     const onlineExclUser = {...onlinePeople};
     delete onlineExclUser[id];
+
+    const [selectedId, setSelectedId] = useState(null)
 
     const messagesExclDupes = uniqBy(messages, '_id');
     const [searchQuery, setSearchQuery] = useState('');
@@ -28,17 +35,18 @@ export default function Chat() {
     const [showResults, setShowResults] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [friendStatus, setFriendStatus] = useState({});
+    const [isSearchEmpty, setIsSearchEmpty] = useState(false);
+    const searchViewRef = useRef(null);
 
 
-  //friend requests
+
+
   const toggleSearch = () => setShowSearch(!showSearch);
-
-
-    
-
 
     useEffect(()=>{
         connectToWs();
+        checkFriendReq();
+        fetchFriends();
         
     }, []);
 
@@ -80,6 +88,19 @@ export default function Chat() {
         }
       }
 
+      function getUsernameByUserId(userId) {
+        // Check if user is online first
+        if (onlinePeople.hasOwnProperty(userId)) {
+            return onlinePeople[userId];
+        }
+        // If not online, check if the user is offline
+        if (offlinePeople.hasOwnProperty(userId)) {
+            return offlinePeople[userId];
+        }
+        // If user is not found in both online and offline, return a default value or null
+        return null;
+    }
+
     function sendMessage(e){
         e.preventDefault();
         console.log('sending message')
@@ -110,7 +131,7 @@ export default function Chat() {
     
             setOfflinePeople(offlinePeopleUpdated);
         });
-    }, [onlinePeople, id]); // Depend on onlinePeople and id to refresh when they change
+    }, [10000]); 
     
 
     useEffect(()=>{
@@ -135,24 +156,31 @@ export default function Chat() {
     setSearchTerm(event.target.value);
   };
 
-
-  useEffect(() => {
-    const userIds = [...Object.keys(onlineExclUser), ...Object.keys(offlinePeople)];
-    const fetchFriendStatuses = async () => {
-        try {
-            const response = await axios.post('/is-friends', {
-                userIds
-            }, { withCredentials: true });
-            setFriendStatus(response.data); // Assuming the API returns an object with userId as key and isFriend as value
-        } catch (error) {
-            console.error('Error fetching friend statuses', error);
-        }
-    };
-
-    fetchFriendStatuses();
-}, [onlineExclUser, offlinePeople, 1000]);
+// Function to fetch friends
+const fetchFriends = async () => {
+    try {
+        const response = await axios.get('/friends', { withCredentials: true });
+        // Assuming the response contains an array of friend objects
+        setFriendStatus(response.data.reduce((acc, friend) => {
+            acc[friend._id] = true; // Or any other logic to mark the user as a friend
+            return acc;
+        }, {}));
+    } catch (error) {
+        console.error('Error fetching friends:', error);
+    }
+};
 
 
+const unifiedFriendsList = Object.entries({...onlinePeople, ...offlinePeople})
+    .filter(([userId, _]) => friendStatus[userId]) // Filter to include only friends
+    .map(([userId, username]) => {
+        const isOnline = !!onlinePeople[userId];
+        return {
+            userId,
+            username,
+            isOnline
+        };
+    });
 
 const clearInput = () => {
 setQuery('');
@@ -171,20 +199,38 @@ function acceptFriendRequest(fromUserId) {
     axios.post('/accept-friend-request', { fromUserId, toUserId: id })
     .then(() => {
         console.log('Friend request accepted');
-        // Update friend list or UI accordingly
+        checkFriendReq();
+        fetchFriends();
+
     })
     .catch(error => console.error('Could not accept friend request', error));
 }
 
 
-const [friendRequests, setFriendRequests] = useState([]);
-useEffect(() => {
+function checkFriendReq(){
     axios.get('/friend-requests', { withCredentials: true }) // Ensure withCredentials is true if cookies are used
     .then(response => {
         setFriendRequests(response.data);
     })
     .catch(error => console.error("Failed to fetch friend requests:", error));
-}, [1000]);
+}
+
+
+useEffect(() => {
+    // Function to detect click outside
+    function handleClickOutside(event) {
+      if (searchViewRef.current && !searchViewRef.current.contains(event.target)) {
+        setShowSearch(false); // Assuming setShowSearch controls the visibility of the search view
+      }
+    }
+  
+    // Add event listener
+    document.addEventListener("mousedown", handleClickOutside);
+    
+    // Cleanup the event listener on component unmount
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []); // Empty dependency array means this effect runs once on mount
+  
 
 
 
@@ -196,11 +242,16 @@ const handleSearch = async (event) => {
     try {
         const response = await axios.get(`http://localhost:4000/search-users?username=${searchQuery}`, { withCredentials: true });
         console.log('Search results:', response.data); // Debug log
-        setSearchResults(response.data);
+
+        const filteredResults = response.data.filter(user => !friendStatus[user._id]);
+        setSearchResults(filteredResults);
+        setIsSearchEmpty(filteredResults.length === 0);
     } catch (error) {
         console.error('Failed to search users:', error);
     }
 };
+
+
     
 
     return(
@@ -222,51 +273,44 @@ const handleSearch = async (event) => {
                 </div>
             </form>
             <div className="flex-grow">
-            {Object.keys(onlineExclUser).map((userID) =>
-                friendStatus[userID] ? ( // Only render if the user is a friend
+            {unifiedFriendsList.map(({ userId, username, isOnline }) => (
                     <Person
-                        key={userID}
-                        id={userID}
-                        online={true}
-                        username={onlineExclUser[userID]}
-                        onClick={() => setSelectedContact(userID)}
-                        selected={userID === selectedContact}
+                        key={userId}
+                        id={userId}
+                        online={isOnline}
+                        username={username}
+                        onClick={() => setSelectedContact(userId)}
+                        selected={userId === selectedContact}
                     />
-                ) : null
-            )}
-            {Object.keys(offlinePeople).map((userID) =>
-                friendStatus[userID] ? (
-                    <Person
-                        key={userID}
-                        id={userID}
-                        online={false}
-                        username={offlinePeople[userID]} // Assuming offlinePeople stores usernames
-                        onClick={() => setSelectedContact(userID)}
-                        selected={userID === selectedContact}
-                    />
-                ) : null
-            )}
+                )
+            )
+        }
         </div>
                 
-
+                        
                 <div className="p-2">
                 {
                     friendRequests && friendRequests.length > 0 && (
-                        <div className="bg-white rounded-xl p-2 shadow-lg mb-5">
-                            <div className="ml-3 font-semibold ">Friend Requests: </div>
+                        <div className="shadow-lg bg-white p-1  m-2 w-auto">
+                            <div className="ml-3 text-lg font-normal w-auto m-3">Requests: </div>
                             {friendRequests.map(request => (
-                                <div key={request.fromUserId} className="flex justify-between m-2 items-center p-2 bg-gray-200 border-gray-300 border rounded-lg">
-                                    <span>{request.fromUserUsername}</span>
-                                    <button onClick={() => acceptFriendRequest(request.fromUserId)} className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded-full">
+                                <div key={request.fromUserId} className=" flex justify-between m-2 items-center">
+                                    <span><Person id={request.fromUserId} username={request.fromUserUsername}></Person>{}</span>
+                                    <div className="flex justify-end mx-2 ">
+                                    <button onClick={() => acceptFriendRequest(request.fromUserId)} className="text-black font-semibold py-1 px-4 mx-2 rounded-full">
+                                        Reject
+                                    </button>
+                                    <button onClick={() => acceptFriendRequest(request.fromUserId)} className="border-black border text-black font-semibold py-1 px-4 rounded-full">
                                         Accept
                                     </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )
                 }
                 
-                <div className="flex justify-between items-center gap-2 p-2"> 
+                <div className="flex justify-between items-center gap-2 p-5 " > 
                     <div className="flex items-center gap-2">
                         <Avatar online={true} username={username} userID={id} />
                         {username}
@@ -288,11 +332,20 @@ const handleSearch = async (event) => {
                 </div>
 
             </div>
-            <div className="flex flex-col w-2/3 h-full">
-            <div className="bg-customGray h-16 w-full border-b-customGraySearch border-2">
+            
+            <div className="flex flex-col w-2/3 h-full" ref={searchViewRef}>
+            <div className="bg-customGray h-16 w-full border-b-customGraySearch border-2 "  >
+                
+                <div className="ml-4 text-xl font-semibold mt-4">{getUsernameByUserId(selectedContact)}</div>
+        </div>
+            {showSearch && (
+            <div >
+            <div className="bg-customGray h-16 w-full border-b-customGraySearch border-2 "  >
+                
             <div className="mt-3 ml-10 mb-2">
+                
             <form className="flex gap-2 " onSubmit={handleSearch}>
-                {showSearch && (
+                
                     <input 
                         value={searchQuery} 
                         onChange={(ev) => setSearchQuery(ev.target.value)} 
@@ -300,13 +353,13 @@ const handleSearch = async (event) => {
                         placeholder="Search for friends" 
                         className="text-sm bg-transparent flex-grow mx-3 items-center border p-2 text-gray-500 bg-customGraySearch w-full" 
                     />
-                )}
+                
                 </form>
                 
+                
             </div>
-            </div>
-
             
+            </div>
             <div className="flex flex-col bg-white w-full p-2 flex-grow">
             {!!showResults &&
                 <div className="w-2/3 mx-auto shadow-md shadow-gray bg-customGray p-4 rounded-xl flex flex-col divide-y divide-gray-200">
@@ -318,16 +371,29 @@ const handleSearch = async (event) => {
                         </button>
                     </div>
                 ))}
+            </div>}
             </div>
-            }
+            
+            
+            </div>)}
+
+            
 
 
-                    
+            
+
+            
+
+            
+            <div className="flex flex-col bg-white w-full p-2 flex-grow">   
                 
             <div className="flex-grow">
+
+                
                     {!selectedContact && (
                         <div className="flex items-center justify-center h-full">
-                            <div className="text-gray-500"> &larr; Please select a contact to view your conversation</div>
+                            <UseAnimations animation={activity} size={56} />
+                            <div className="m-4 text-xl">Select or add a contact to get started</div>
                         </div>
                     )}
                     {!!selectedContact && (
@@ -373,7 +439,8 @@ const handleSearch = async (event) => {
                 )}
             </div>
         </div>
-
+       
         </div>
+        
     );
 }

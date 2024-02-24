@@ -20,6 +20,7 @@ app.use(cors({
     origin: process.env.HOST_NAME,
 }));
 
+//connecting to mongodb
 mongoose.connect(process.env.MONGO_URL)
     .then(() => {
         console.log('Connected to MongoDB');
@@ -28,10 +29,12 @@ mongoose.connect(process.env.MONGO_URL)
         console.error('Error connecting to MongoDB:', err);
     });
 
+//test
 app.get('/main', (req, res) => {
     res.json('main ok');
 });
 
+//notify online people
 function NotifyOnlinePeople(){
     [...websocketserver.clients].forEach(client => {
         client.send(JSON.stringify({
@@ -56,10 +59,13 @@ async function getUserDataFromReq(req){
     })
     
 }
+
+//checks if password is strong
 function isStrongPassword(password) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
 }
 
+//gets messages with given user id
 app.get('/messages/:userID', async (req, res) => {
     try {
         const { userID } = req.params;
@@ -81,7 +87,7 @@ app.get('/messages/:userID', async (req, res) => {
                 { sender: userID, recipient: ourUserID },
                 { sender: ourUserID, recipient: userID }
             ],
-        }).sort({ createdAt: -1 });
+        }).sort();
 
         res.json(messages);
     } catch (error) {
@@ -90,7 +96,7 @@ app.get('/messages/:userID', async (req, res) => {
     }
 });
 
-
+//retrieves user profile
 app.get('/profile', (req, res) => {
     const token = req.cookies?.token;
     if (token){
@@ -104,6 +110,7 @@ app.get('/profile', (req, res) => {
     }  
 });
 
+//sends friend request to user id
 app.post('/send-friend-request', async (req, res) => {
     const { fromUserId, toUserId } = req.body;
   
@@ -142,12 +149,50 @@ app.post('/send-friend-request', async (req, res) => {
     res.send('Friend request accepted.');
     });
 
+//gets list of users
 app.get('/people', async (req,res) =>{
    const users = await User.find({}, {'_id':1, username:1});
    res.json(users);
 });
 
+//gets list of friends
+app.get('/friends', async (req, res) => {
+    try {
+        const token = req.cookies?.token;
+        if (!token) {
+            return res.status(401).json({ message: "Unauthorized: No token provided." });
+        }
 
+        const userData = await new Promise((resolve, reject) => {
+            jsonwebtoken.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(decoded);
+                }
+            });
+        });
+        const currentUserId = userData.userID; // Make sure this matches how you access the current user's ID
+
+        // Find the current user and populate their friends list
+        const user = await User.findById(currentUserId)
+            .populate('friends', 'username') // Populate the 'friends' array. Adjust to include fields you need, e.g., 'username'
+            .exec();
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Respond with the populated friends array
+        res.json(user.friends);
+    } catch (error) {
+        console.error('Error fetching friends:', error);
+        res.status(500).json({ message: "An error occurred while fetching friends" });
+    }
+});
+
+
+//checks if user is friends with a user id
 app.post('/is-friends', async (req, res) => {
     try {
         const token = req.cookies?.token;
@@ -185,7 +230,7 @@ app.post('/is-friends', async (req, res) => {
 });
 
 
-
+//gets active friend requests
 app.get('/friend-requests', async (req, res) => {
     try {
         const token = req.cookies?.token;
@@ -224,16 +269,34 @@ app.get('/friend-requests', async (req, res) => {
 
 
 
-
+//searches for users
 app.get('/search-users', async (req, res) => {
     const searchTerm = req.query.username;
     if (!searchTerm) {
         return res.json([]);
     }
     try {
+        const token = req.cookies?.token;
+        if (!token) {
+            return res.status(401).json({ message: "Unauthorized: No token provided." });
+        }
+
+        const userData = await new Promise((resolve, reject) => {
+            jsonwebtoken.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(decoded);
+                }
+            });
+        });
+        const currentUserId = userData.userID;
+
         const users = await User.find({
+            _id: { $ne: currentUserId },
             username: { $regex: searchTerm, $options: 'i' }
-        }, '_id username').limit(10); // Limit to 10 results for efficiency
+        }, '_id username').limit(10);
+
         res.json(users);
     } catch (error) {
         console.error('Search users error:', error);
@@ -241,6 +304,8 @@ app.get('/search-users', async (req, res) => {
     }
 });
 
+
+//login
 app.post('/login',async (req,res) =>{
     const {username, password} = req.body;
     const foundUser = await User.findOne({username});
@@ -256,11 +321,12 @@ app.post('/login',async (req,res) =>{
     }
 });
 
+//logout
 app.post('/logout', (req,res) =>{
     res.cookie('token', '', {sameSite: 'none', secure: true}).json('Logged out');
 });
 
-
+//singup
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     const existingUser = await User.findOne({ username: username });
@@ -356,7 +422,7 @@ websocketserver.on('connection', (connection, req) => {
     }
 
     });
-//notify everyone when someone connects
+
 NotifyOnlinePeople()
     
 });
