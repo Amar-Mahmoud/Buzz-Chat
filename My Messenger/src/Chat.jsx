@@ -356,19 +356,16 @@ const handleSearch = async (event) => {
                 
                 </form>
                 
-                
             </div>
             
             </div>
             <div className="flex flex-col bg-white w-full p-2 flex-grow">
             {!!showResults &&
-                <div className="w-2/3 mx-auto shadow-md shadow-gray bg-customGray p-4 rounded-xl flex flex-col divide-y divide-gray-200">
+                <div>
                 {searchResults.map((user, index) => (
-                    <div key={user._id} className="flex justify-between items-center py-2">
+                    <div key={user._id} onClick={() => sendFriendRequest(user._id)} className="cursor-pointer flex justify-between p-4 mt-2 items-center rounded-xl shadow-md">
                         <span className="">{user.username}</span>
-                        <button onClick={() => sendFriendRequest(user._id)} className="text-black text-xl">
-                            <IoMdPersonAdd/>
-                        </button>
+                        
                     </div>
                 ))}
             </div>}
