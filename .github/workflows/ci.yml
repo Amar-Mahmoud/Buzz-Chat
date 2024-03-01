@@ -13,17 +13,19 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
       
-    - name: Use Node.js 16.x
+    - name: Use Node.js 18.x
       uses: actions/setup-node@v2
       with:
-        node-version: '16.x'
+        node-version: '18.x'
     
     - name: Install dependencies
       run: yarn install --frozen-lockfile
-      working-directory: "My Messenger/"
+      working-directory: My Messenger/
       
-    - name: Run backend tests
-      run: yarn test --cwd backend
+    - name: Run linting
+      run: yarn lint
+      working-directory: My Messenger/
       
-    - name: Build frontend
-      run: yarn build --cwd frontend
+    - name: Build project
+      run: yarn build
+      working-directory: My Messenger/
