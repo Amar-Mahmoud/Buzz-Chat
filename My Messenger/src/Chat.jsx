@@ -352,7 +352,7 @@ const handleSearch = async (event) => {
                         type="text" 
                         placeholder="Search for friends" 
                         className="text-sm bg-transparent flex-grow mx-3 items-center border p-2 text-gray-500 bg-customGraySearch w-full" 
-                    />
+                    /> 
                 
                 </form>
                 
