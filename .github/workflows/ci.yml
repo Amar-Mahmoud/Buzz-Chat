@@ -18,12 +18,13 @@ jobs:
       with:
         node-version: '14'
         cache: 'yarn'
-        
+    
     - name: Install dependencies
       run: yarn install --frozen-lockfile
+      working-directory: My Messenger/
       
     - name: Run backend tests
       run: yarn test --cwd backend
       
     - name: Build frontend
-      run: yarn build --cwd My Messenger
+      run: yarn build --cwd frontend
