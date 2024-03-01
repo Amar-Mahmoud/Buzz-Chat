@@ -1,0 +1,30 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Install Node.js and Yarn
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+    
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+      working-directory: "My Messenger/"
+
+      
+    - name: Run backend tests
+      run: yarn test --cwd backend
+      
+    - name: Build frontend
+      run: yarn build --cwd frontend

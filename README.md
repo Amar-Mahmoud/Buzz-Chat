@@ -18,6 +18,10 @@ Buzz Chat is a full-stack real-time messaging application built with the MERN st
 - **Real-Time Communication**: Utilizes WebSocket server for seamless chat functionality.
 - **Security**: Uses bcrypt.js for robust encryption.
 
+![image](https://github.com/Amar-Mahmoud/Buzz-Chat/assets/74137093/210c52ac-057c-4b3d-aabe-1197527cc877)
+![image](https://github.com/Amar-Mahmoud/Buzz-Chat/assets/74137093/fa77f638-ad6a-4599-9853-a2c597ca1d08)
+
+
 ## Getting Started
 
 To get a local copy up and running follow these simple steps.
