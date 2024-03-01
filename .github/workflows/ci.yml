@@ -21,7 +21,8 @@ jobs:
     
     - name: Install dependencies
       run: yarn install --frozen-lockfile
-      working-directory: My Messenger/
+      working-directory: "My Messenger/"
+
       
     - name: Run backend tests
       run: yarn test --cwd backend
