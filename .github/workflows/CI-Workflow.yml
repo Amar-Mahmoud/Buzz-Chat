@@ -25,3 +25,16 @@ jobs:
     - name: Build project
       run: yarn build
       working-directory: My Messenger/
+      
+    - name: Install backend dependencies
+      run: yarn install --frozen-lockfile
+      working-directory: backend
+      
+    - name: Build backend
+      run: yarn build
+      working-directory: backend
+      
+    - name: Test backend
+      run: yarn test
+      working-directory: backend
+      
