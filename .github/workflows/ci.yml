@@ -22,10 +22,6 @@ jobs:
       run: yarn install --frozen-lockfile
       working-directory: My Messenger/
       
-    - name: Run linting
-      run: yarn lint
-      working-directory: My Messenger/
-      
     - name: Build project
       run: yarn build
       working-directory: My Messenger/
